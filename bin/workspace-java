@@ -1,0 +1,104 @@
+#!/bin/sh
+# Resolve dependencies for, and build and run, the checkout in a development workspace.
+set -eu
+cd "${APP_ROOT:-/usr/src/app}"
+state=$(workspace-path)
+# The container's home is lost whenever the container restarts, and preparation
+# runs in a container of its own. Keep downloaded dependencies, build tools and
+# the build with the checkout instead, so a restart downloads nothing again.
+# Locations set to anything else stay as set.
+case " ${MAVEN_OPTS:-} " in
+ *-Dmaven.repo.local=*) ;;
+ *) export MAVEN_OPTS="${MAVEN_OPTS:+$MAVEN_OPTS }-Dmaven.repo.local=$state/m2/repository" ;;
+esac
+export MAVEN_USER_HOME="${MAVEN_USER_HOME:-$state/m2}"
+export GRADLE_USER_HOME="${GRADLE_USER_HOME:-$state/gradle}"
+# Builds in the workspace keep the Gradle daemon, which makes rebuilds faster.
+export JAVA_GRADLE_DAEMON=--daemon
+if [ "${1:-}" = start ] && [ -n "${WORKSPACE_JAVA_COMMAND:-}" ]; then exec sh -ec "$WORKSPACE_JAVA_COMMAND"; fi
+jar="$state/app.jar"
+case "${1:-}" in
+ prepare)
+  # Download dependencies only: code that does not compile yet must not fail preparation.
+  if [ -n "${JAVA_BUILD_COMMAND:-}" ]; then
+   echo 'workspace-java: JAVA_BUILD_COMMAND is set; nothing to prepare'
+  elif [ -f pom.xml ]; then
+   if [ -f mvnw ]; then mvn="sh ./mvnw"; else mvn=mvn; fi
+   $mvn -B -ntp -q dependency:go-offline
+  elif [ -f build.gradle ] || [ -f build.gradle.kts ]; then
+   [ -f gradlew ] || { echo 'workspace-java: Gradle projects need the Gradle wrapper (gradlew)' >&2; exit 1; }
+   sh ./gradlew --no-daemon -q dependencies >/dev/null
+  else
+   echo 'workspace-java: no pom.xml, build.gradle or build.gradle.kts in the checkout' >&2
+   exit 1
+  fi ;;
+ start)
+  # Build the checkout and run it. With watching on, which is the default, the
+  # checkout is built again whenever a source file changes and the application
+  # is restarted with the new build, so a change is served without restarting
+  # the container. A build that fails leaves the running build up.
+  build() { java-build "$jar"; }
+  run() { JAVA_APP_JAR="$jar" java-app & child=$!; }
+  if [ "${WORKSPACE_JAVA_WATCH:-1}" = 0 ]; then
+   build
+   exec env JAVA_APP_JAR="$jar" java-app
+  fi
+  # The checkout is a shared volume that other containers write to, where file
+  # events don't arrive, so the files are polled. Build output, Git's own files,
+  # this script's storage and editor and Node folders are not watched.
+  interval="${WORKSPACE_POLL_INTERVAL:-1000}"
+  case "$interval" in ''|*[!0-9]*) echo 'WORKSPACE_POLL_INTERVAL must be milliseconds' >&2; exit 1 ;; esac
+  [ "$interval" -ge 100 ] && [ "$interval" -le 60000 ] || { echo 'Polling interval must be 100..60000 ms' >&2; exit 1; }
+  pause=$(( (interval + 999) / 1000 ))
+  root=$(pwd -P)
+  fingerprint() {
+   find "$root" \( -path "$root/.git" -o -path "$state" -o -name target -o -name build -o -name .gradle \
+    -o -name node_modules -o -name .idea -o -name .vscode \) -prune -o -type f -exec stat -c '%Y %s %n' {} + 2>/dev/null | sort | cksum
+  }
+  child=
+  stop() {
+   [ -n "$child" ] || return 0
+   kill -TERM "$child" 2>/dev/null || true
+   # An application that ignores the signal is killed after ten seconds.
+   n=0
+   while kill -0 "$child" 2>/dev/null && [ "$n" -lt 100 ]; do sleep 0.1; n=$((n + 1)); done
+   kill -KILL "$child" 2>/dev/null || true
+   wait "$child" 2>/dev/null || true
+   child=
+  }
+  trap 'stop; exit 143' HUP INT TERM
+  seen=$(fingerprint)
+  # A first build that fails waits for a change instead of ending the container,
+  # so a broken checkout can be fixed in place.
+  if build; then
+   run
+  else
+   echo 'workspace-java: the build failed; waiting for a change' >&2
+  fi
+  while :; do
+   # Sleep in the background so a signal ends the wait at once.
+   sleep "$pause" &
+   wait $! || true
+   if [ -n "$child" ] && ! kill -0 "$child" 2>/dev/null; then
+    # The application ended by itself. The container ends with it, as it
+    # would without watching, and its restart policy decides what follows.
+    code=0
+    wait "$child" || code=$?
+    exit "$code"
+   fi
+   now=$(fingerprint)
+   [ "$now" != "$seen" ] || continue
+   seen=$now
+   echo 'workspace-java: the checkout changed; building' >&2
+   if build; then
+    stop
+    run
+    echo 'workspace-java: restarted with the new build' >&2
+   elif [ -n "$child" ]; then
+    echo 'workspace-java: the build failed; the previous build keeps running' >&2
+   else
+    echo 'workspace-java: the build failed; waiting for a change' >&2
+   fi
+  done ;;
+ *) echo 'Usage: workspace-java prepare|start' >&2; exit 1 ;;
+esac

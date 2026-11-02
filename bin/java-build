@@ -1,0 +1,54 @@
+#!/bin/sh
+# Build the checkout with its own build tool and copy the runnable jar to the given path.
+#
+# Maven projects build with the Maven wrapper when the checkout has one, or else with the
+# image's Maven; Gradle projects build with their Gradle wrapper. Tests are not built or run.
+# JAVA_BUILD_COMMAND replaces the build command, and JAVA_BUILD_JAR names the jar to copy,
+# relative to the checkout, when the build produces more than one.
+set -eu
+output="${1:?Usage: java-build <output jar>}"
+cd "${APP_ROOT:-/usr/src/app}"
+# Build tools report on stderr, so that standard output stays the application's.
+exec 1>&2
+
+if [ -n "${JAVA_BUILD_COMMAND:-}" ]; then
+  sh -ec "$JAVA_BUILD_COMMAND"
+  outputs=.
+elif [ -f pom.xml ]; then
+  if [ -f mvnw ]; then mvn="sh ./mvnw"; else mvn=mvn; fi
+  # shellcheck disable=SC2086
+  $mvn -B -ntp -Dmaven.test.skip=true ${JAVA_BUILD_ARGS:-} package
+  outputs=target
+elif [ -f build.gradle ] || [ -f build.gradle.kts ]; then
+  [ -f gradlew ] || { echo 'java-build: Gradle projects need the Gradle wrapper (gradlew)' >&2; exit 1; }
+  # A one-off build stops its daemon; a workspace keeps it for faster rebuilds.
+  # shellcheck disable=SC2086
+  sh ./gradlew ${JAVA_GRADLE_DAEMON:---no-daemon} -q ${JAVA_BUILD_ARGS:-} assemble
+  outputs=build/libs
+else
+  echo 'java-build: no pom.xml, build.gradle or build.gradle.kts in the checkout' >&2
+  exit 1
+fi
+
+if [ -n "${JAVA_BUILD_JAR:-}" ]; then
+  jar="$JAVA_BUILD_JAR"
+  [ -f "$jar" ] || { echo "java-build: $jar was not built" >&2; exit 1; }
+else
+  # Leave out the archives that build tools make next to the runnable one.
+  jars=$(find "$outputs" -maxdepth 1 -type f -name '*.jar' \
+    ! -name '*-sources.jar' ! -name '*-javadoc.jar' ! -name '*-tests.jar' \
+    ! -name '*-plain.jar' ! -name 'original-*.jar' 2>/dev/null | sort)
+  count=$(printf '%s' "$jars" | grep -c . || true)
+  if [ "$count" -ne 1 ]; then
+    echo "java-build: expected one jar in $outputs, found $count; set JAVA_BUILD_JAR" >&2
+    [ -z "$jars" ] || printf '%s\n' "$jars" >&2
+    exit 1
+  fi
+  jar="$jars"
+fi
+
+# Replace the output in one step, so a running application never reads a partial file.
+mkdir -p "$(dirname "$output")"
+tmp=$(mktemp "$output.XXXXXX")
+cp "$jar" "$tmp"
+mv "$tmp" "$output"

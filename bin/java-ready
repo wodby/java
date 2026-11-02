@@ -1,0 +1,14 @@
+#!/bin/sh
+# Check that the application answers HTTP on port 8080.
+#
+# With JAVA_READY_PATH set, that path must answer 200, as a health endpoint does. Without it,
+# any answer below 500 from / counts, because an application need not serve its root.
+set -u
+host="${1:-localhost}"
+path="${JAVA_READY_PATH:-}"
+code=$(curl -s -o /dev/null -m 3 -w '%{http_code}' "http://${host}:8080${path:-/}") || code=000
+if [ -n "$path" ]; then
+  [ "$code" = 200 ]
+else
+  [ "$code" -ge 100 ] && [ "$code" -lt 500 ]
+fi
