@@ -1,0 +1,56 @@
+{
+  "schema": 1,
+  "image": "wodby/java",
+  "versions": [
+    {
+      "version": {
+        "env": "JAVA25"
+      },
+      "variants": [
+        {
+          "short": [
+            "{major}"
+          ],
+          "full": "{version}"
+        },
+        {
+          "short": [
+            "{major}-dev"
+          ],
+          "full": "{version}-dev"
+        },
+        {
+          "short": [
+            "{major}-dev-macos"
+          ],
+          "full": "{version}-dev-macos"
+        }
+      ]
+    },
+    {
+      "version": {
+        "env": "JAVA21"
+      },
+      "variants": [
+        {
+          "short": [
+            "{major}"
+          ],
+          "full": "{version}"
+        },
+        {
+          "short": [
+            "{major}-dev"
+          ],
+          "full": "{version}-dev"
+        },
+        {
+          "short": [
+            "{major}-dev-macos"
+          ],
+          "full": "{version}-dev-macos"
+        }
+      ]
+    }
+  ]
+}

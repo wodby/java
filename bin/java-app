@@ -1,0 +1,7 @@
+#!/bin/sh
+# Run the application jar. JAVA_OPTS holds JVM options, and arguments go to the application.
+set -eu
+jar="${JAVA_APP_JAR:-/home/wodby/app.jar}"
+[ -f "$jar" ] || { echo "java-app: $jar does not exist; build the application first" >&2; exit 1; }
+# shellcheck disable=SC2086
+exec java ${JAVA_OPTS:-} -jar "$jar" "$@"

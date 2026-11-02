@@ -1,0 +1,139 @@
+name: Build docker image
+
+on:
+  push:
+    branches:
+      - master
+
+    tags:
+      - '*'
+      - '!*-r[0-9]*'
+
+  pull_request:
+
+env:
+  JAVA25: '25.0.5'
+  JAVA21: '21.0.13'
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      java-versions: ${{ steps.set-matrix.outputs.java-versions }}
+    steps:
+      - id: set-matrix
+        run: |
+          cat << 'EOF' > versions.json
+          [
+            {"key": "java25", "version": "${{ env.JAVA25 }}", "latest": "latest"},
+            {"key": "java21", "version": "${{ env.JAVA21 }}", "latest": ""}
+          ]
+          EOF
+          echo "java-versions=$(jq -c . versions.json)" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: setup
+    strategy:
+      fail-fast: false
+      matrix:
+        java: ${{ fromJson(needs.setup.outputs.java-versions) }}
+        arch:
+          - amd64
+          - arm64
+        dev:
+          - ''
+          - 'dev'
+        user_id:
+          - 1000
+          - 501
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+          - user_id: 501
+            group_id: 20
+            dev: dev
+        exclude:
+          - dev: ''
+            user_id: 501
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build and test
+        id: build-image
+        env:
+          JAVA_VER: ${{ matrix.java.version }}
+          ARCH: ${{ matrix.arch }}
+          JAVA_DEV: ${{ matrix.dev }}
+          WODBY_USER_ID: ${{ matrix.user_id }}
+          WODBY_GROUP_ID: ${{ matrix.group_id }}
+        run: |
+          make
+          make test
+          echo "image=$(make --no-print-directory -s image-ref)" >> "$GITHUB_OUTPUT"
+      - name: Scan image
+        uses: ./.github/actions/grype
+        with:
+          image: docker:${{ steps.build-image.outputs.image }}
+      - uses: docker/login-action@v4
+        if: github.event_name == 'push'
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Push architecture image
+        if: github.event_name == 'push'
+        env:
+          JAVA_VER: ${{ matrix.java.version }}
+          ARCH: ${{ matrix.arch }}
+          JAVA_DEV: ${{ matrix.dev }}
+          WODBY_USER_ID: ${{ matrix.user_id }}
+          WODBY_GROUP_ID: ${{ matrix.group_id }}
+        run: make push
+
+  push:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    needs:
+      - setup
+      - build
+    strategy:
+      matrix:
+        java: ${{ fromJson(needs.setup.outputs.java-versions) }}
+        dev:
+          - ''
+          - 'dev'
+        user_id:
+          - 1000
+          - 501
+        exclude:
+          - dev: ''
+            user_id: 501
+    steps:
+      - uses: actions/checkout@v6
+      - uses: docker/login-action@v4
+        if: github.event_name == 'push'
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - uses: ./.github/actions
+        with:
+          version: ${{ matrix.java.version }}
+          dev: ${{ matrix.dev }}
+          user_id: ${{ matrix.user_id }}
+          latest: ${{ matrix.java.latest }}
+
+  image-revision-aliases:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/r')
+    needs: [ push ]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: image-revision-aliases-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - uses: wodby/images/.github/actions/image-revision-aliases@aee656b81ae84e0dca0cfdbea173057abe4a9426
+        with:
+          docker_username: ${{ secrets.DOCKER_USERNAME }}
+          docker_password: ${{ secrets.DOCKER_PASSWORD }}
