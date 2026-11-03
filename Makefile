@@ -18,13 +18,8 @@ endif
 
 ifeq ($(TAG),)
 	ifneq ($(JAVA_DEV),)
-		ifeq ($(WODBY_USER_ID),501)
-			TAG := $(JAVA_VER_MAJOR)-dev-macos
-			NAME := $(NAME)-dev-macos
-		else
-			TAG := $(JAVA_VER_MAJOR)-dev
-			NAME := $(NAME)-dev
-		endif
+		TAG := $(JAVA_VER_MAJOR)-dev
+		NAME := $(NAME)-dev
 	else
 		TAG := $(JAVA_VER_MAJOR)
 	endif

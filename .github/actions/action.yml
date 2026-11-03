@@ -9,9 +9,6 @@ inputs:
     required: false
   dev:
     description: if set then it's a dev version
-  user_id:
-    description: user id
-    required: true
 runs:
   using: "composite"
   steps:
@@ -19,7 +16,6 @@ runs:
       env:
         JAVA_VER: ${{ inputs.version }}
         JAVA_DEV: ${{ inputs.dev }}
-        WODBY_USER_ID: ${{ inputs.user_id }}
         LATEST: ${{ inputs.latest }}
       run: |
         . $GITHUB_ACTION_PATH/release.sh
