@@ -149,6 +149,7 @@ EXPOSE 8080
 COPY templates /etc/gotpl/
 COPY docker-entrypoint.sh /
 COPY bin /usr/local/bin/
+COPY share /usr/local/share/wodby/
 
 ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["java-app"]

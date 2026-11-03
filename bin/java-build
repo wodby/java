@@ -21,9 +21,18 @@ elif [ -f pom.xml ]; then
   outputs=target
 elif [ -f build.gradle ] || [ -f build.gradle.kts ]; then
   [ -f gradlew ] || { echo 'java-build: Gradle projects need the Gradle wrapper (gradlew)' >&2; exit 1; }
-  # A one-off build stops its daemon; a workspace keeps it for faster rebuilds.
+  # A one-off build stops its daemon and builds what assemble builds.
+  gradle="--no-daemon" task=assemble
+  if [ -n "${JAVA_GRADLE_WORKSPACE:-}" ]; then
+    # Workspace rebuilds (workspace-java) keep the daemon, compile Kotlin inside it
+    # instead of in a Kotlin daemon of its own, and with the init script build only
+    # the runnable jar, uncompressed. A jar named by JAVA_BUILD_JAR may come from any
+    # task, so that build still runs assemble.
+    gradle="--daemon --init-script /usr/local/share/wodby/workspace.init.gradle -Pkotlin.compiler.execution.strategy=in-process"
+    [ -n "${JAVA_BUILD_JAR:-}" ] || task=wodbyWorkspaceJar
+  fi
   # shellcheck disable=SC2086
-  sh ./gradlew ${JAVA_GRADLE_DAEMON:---no-daemon} -q ${JAVA_BUILD_ARGS:-} assemble
+  sh ./gradlew $gradle -q ${JAVA_BUILD_ARGS:-} "$task"
   outputs=build/libs
 else
   echo 'java-build: no pom.xml, build.gradle or build.gradle.kts in the checkout' >&2

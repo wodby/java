@@ -1,0 +1,28 @@
+// Applied by java-build to Gradle builds in a development workspace, which rebuild the
+// runnable jar after every change and run it in place.
+//
+// Jars are written without compression: a fat jar of a few dozen megabytes is written
+// again on every rebuild, and compressing it is most of that time. The workspace jar is
+// never shipped, so its size doesn't matter.
+allprojects {
+    tasks.withType(Jar).configureEach {
+        entryCompression = ZipEntryCompression.STORED
+    }
+}
+
+// wodbyWorkspaceJar builds, in each project, only the jar that is run: Spring Boot's
+// bootJar or Shadow's shadowJar. Projects with neither build assemble, as builds outside a
+// workspace do. The zip and tar distributions, start scripts and plain jars that assemble
+// would also build are left out.
+rootProject { root ->
+    root.tasks.register('wodbyWorkspaceJar') {
+        description = 'Builds the runnable jar of each project for a development workspace.'
+        // Resolved when the task graph is built, after every project has added its tasks.
+        dependsOn {
+            root.allprojects.collect { project ->
+                def name = ['bootJar', 'shadowJar', 'assemble'].find { project.tasks.names.contains(it) }
+                name ? project.tasks.named(name) : null
+            }.findAll { it != null }
+        }
+    }
+}
