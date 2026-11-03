@@ -18,12 +18,6 @@
             "{major}-dev"
           ],
           "full": "{version}-dev"
-        },
-        {
-          "short": [
-            "{major}-dev-macos"
-          ],
-          "full": "{version}-dev-macos"
         }
       ]
     },
@@ -43,12 +37,6 @@
             "{major}-dev"
           ],
           "full": "{version}-dev"
-        },
-        {
-          "short": [
-            "{major}-dev-macos"
-          ],
-          "full": "{version}-dev-macos"
         }
       ]
     }

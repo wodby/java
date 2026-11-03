@@ -43,20 +43,11 @@ jobs:
         dev:
           - ''
           - 'dev'
-        user_id:
-          - 1000
-          - 501
         include:
           - arch: amd64
             runner: ubuntu-24.04
           - arch: arm64
             runner: ubuntu-24.04-arm
-          - user_id: 501
-            group_id: 20
-            dev: dev
-        exclude:
-          - dev: ''
-            user_id: 501
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v6
@@ -66,8 +57,6 @@ jobs:
           JAVA_VER: ${{ matrix.java.version }}
           ARCH: ${{ matrix.arch }}
           JAVA_DEV: ${{ matrix.dev }}
-          WODBY_USER_ID: ${{ matrix.user_id }}
-          WODBY_GROUP_ID: ${{ matrix.group_id }}
         run: |
           make
           make test
@@ -87,8 +76,6 @@ jobs:
           JAVA_VER: ${{ matrix.java.version }}
           ARCH: ${{ matrix.arch }}
           JAVA_DEV: ${{ matrix.dev }}
-          WODBY_USER_ID: ${{ matrix.user_id }}
-          WODBY_GROUP_ID: ${{ matrix.group_id }}
         run: make push
 
   push:
@@ -103,12 +90,6 @@ jobs:
         dev:
           - ''
           - 'dev'
-        user_id:
-          - 1000
-          - 501
-        exclude:
-          - dev: ''
-            user_id: 501
     steps:
       - uses: actions/checkout@v6
       - uses: docker/login-action@v4
@@ -120,7 +101,6 @@ jobs:
         with:
           version: ${{ matrix.java.version }}
           dev: ${{ matrix.dev }}
-          user_id: ${{ matrix.user_id }}
           latest: ${{ matrix.java.latest }}
 
   image-revision-aliases:

@@ -8,7 +8,6 @@
 
 - [Docker Images](#docker-images)
     - [`-dev`](#-dev)
-    - [`-dev-macos`](#-dev-macos)
     - [Supported architectures](#supported-architectures)
 - [Environment Variables](#environment-variables)
 - [Build arguments](#build-arguments)
@@ -43,18 +42,12 @@ Supported tags and respective `Dockerfile` links:
 - `21` [_(Dockerfile)_]
 - `25-dev`, `dev` [_(Dockerfile)_]
 - `21-dev` [_(Dockerfile)_]
-- `25-dev-macos`, `dev-macos` [_(Dockerfile)_]
-- `21-dev-macos` [_(Dockerfile)_]
 
 [_(Dockerfile)_]: https://github.com/wodby/java/tree/master/Dockerfile
 
 ### `-dev`
 
 Images with `-dev` tag have `sudo` allowed for all commands for the `wodby` user, include `ripgrep` and `jq`, and declare the Wodby development workspace contract.
-
-### `-dev-macos`
-
-Same as `-dev` but the default user/group `wodby` has uid/gid `501`/`20` to match the macOS default user/group ids.
 
 ### Supported architectures
 
@@ -93,7 +86,7 @@ All images are built for `linux/amd64` and `linux/arm64`.
 | `WODBY_GROUP_ID` | `1000`        |
 | `WODBY_USER_ID`  | `1000`        |
 
-Change `WODBY_USER_ID` and `WODBY_GROUP_ID` mainly for local dev image variants. If either value matches an existing system user/group id, the existing user/group will be deleted before creating the `wodby` user.
+Change `WODBY_USER_ID` and `WODBY_GROUP_ID` to build an image whose `wodby` user matches the owner of mounted files. If either value matches an existing system user/group id, the existing user/group will be deleted before creating the `wodby` user.
 
 ## Tools
 

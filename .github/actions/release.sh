@@ -11,11 +11,7 @@ if [[ "${GITHUB_REF}" == refs/heads/master || "${GITHUB_REF}" == refs/tags/* ]];
   tag="${JAVA_VER%%.*}"
 
   if [[ -n "${JAVA_DEV}" ]]; then
-    if [[ "${WODBY_USER_ID}" == "501" ]]; then
-      tag="${tag}-dev-macos"
-    else
-      tag="${tag}-dev"
-    fi
+    tag="${tag}-dev"
   fi
 
   tags=("${tag}")
@@ -26,8 +22,6 @@ if [[ "${GITHUB_REF}" == refs/heads/master || "${GITHUB_REF}" == refs/tags/* ]];
   elif [[ -n "${LATEST}" ]]; then
     if [[ -z "${JAVA_DEV}" ]]; then
       tags+=("latest")
-    elif [[ "${WODBY_USER_ID}" == "501" ]]; then
-      tags+=("dev-macos")
     else
       tags+=("dev")
     fi
