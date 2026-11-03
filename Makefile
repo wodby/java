@@ -77,6 +77,7 @@ test:
 ifneq ($(JAVA_DEV),)
 	cd ./tests && JAVA_IMAGE=$(REPO):$(TAG) ./run.sh
 	cd ./tests && IMAGE=$(REPO):$(TAG) bash ./workspace-reload.sh
+	cd ./tests && IMAGE=$(REPO):$(TAG) bash ./workspace-gradle.sh
 else
 	@echo "We run tests only for DEV images."
 endif

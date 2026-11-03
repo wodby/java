@@ -123,6 +123,7 @@ Gradle is not installed: Gradle projects build with their own wrapper (`gradlew`
 
 - `workspace-java prepare` downloads dependencies (`mvn dependency:go-offline` or `gradlew dependencies`); code that does not compile yet does not fail it.
 - `workspace-java start` builds the checkout with `java-build`, runs the jar from `.wodby-workspace/app.jar`, and polls the checkout: when a file changes, it builds again and restarts the application in the same container. A failed build keeps the previous build running, and a failed first build waits for a change.
+- Gradle rebuilds in the workspace are set up for speed: the Gradle daemon is kept, Kotlin compiles inside it instead of in a Kotlin daemon of its own, only the runnable jar is built (`bootJar` with Spring Boot, `shadowJar` with Shadow, `assemble` otherwise, and always `assemble` when `JAVA_BUILD_JAR` is set), and the jar is written without compression. Projects with large Kotlin sources may need more memory for the Gradle daemon (`org.gradle.jvmargs` in `gradle.properties`).
 - Maven's repository, the Maven wrapper's downloads and Gradle's home are kept in `.wodby-workspace/`, so a container restart downloads nothing again. A `-Dmaven.repo.local` in `MAVEN_OPTS` or a `GRADLE_USER_HOME` that is already set is kept.
 - `WORKSPACE_JAVA_WATCH=0` turns watching off, `WORKSPACE_JAVA_COMMAND` replaces the start command, and `WORKSPACE_POLL_INTERVAL` sets the polling interval in milliseconds (default `1000`).
 
@@ -193,4 +194,4 @@ and `.vscode` are not watched. The directory `.wodby-workspace` is excluded thro
 that reserved path is refused.
 
 CI checks labels for all image variants and runs configuration, developer-state,
-reserved-path, runtime and reload tests for development variants.
+reserved-path, runtime, reload and Gradle workspace build tests for development variants.

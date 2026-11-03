@@ -13,8 +13,8 @@ case " ${MAVEN_OPTS:-} " in
 esac
 export MAVEN_USER_HOME="${MAVEN_USER_HOME:-$state/m2}"
 export GRADLE_USER_HOME="${GRADLE_USER_HOME:-$state/gradle}"
-# Builds in the workspace keep the Gradle daemon, which makes rebuilds faster.
-export JAVA_GRADLE_DAEMON=--daemon
+# Gradle builds in the workspace are set up for fast rebuilds; see java-build.
+export JAVA_GRADLE_WORKSPACE=1
 if [ "${1:-}" = start ] && [ -n "${WORKSPACE_JAVA_COMMAND:-}" ]; then exec sh -ec "$WORKSPACE_JAVA_COMMAND"; fi
 jar="$state/app.jar"
 case "${1:-}" in
