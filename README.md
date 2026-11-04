@@ -181,7 +181,7 @@ startup command. Login-shell tools remain available when the developer home is m
 and Maven and Gradle in a login shell use the dependencies kept in `.wodby-workspace/`.
 
 Files are polled because file events don't reach a shared volume. Git's own files,
-`.wodby-workspace`, build output (`target`, `build`, `.gradle`), `node_modules`, `.idea`
+`.wodby-workspace`, build output and build state (`target`, `build`, `.gradle`, `.kotlin`), `node_modules`, `.idea`
 and `.vscode` are not watched. The directory `.wodby-workspace` is excluded through
 `.git/info/exclude` without editing `.gitignore`; a tracked directory or symlink at
 that reserved path is refused.
