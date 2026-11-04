@@ -81,8 +81,12 @@ echo 'java: a change to a resource was built and served'
 # All of that happened in one container.
 test "$(docker inspect -f '{{.State.StartedAt}} {{.RestartCount}}' "$server")" = "$first 0"
 
-# Build output and dependency storage are not watched: nothing is built while nothing changes.
+# Build output, build state and dependency storage are not watched: nothing is built while
+# nothing changes, and a build run from a shell, which writes them, builds nothing either.
 builds=$(docker logs "$server" 2>&1 | grep -c 'the checkout changed; building')
+write 'mkdir -p /fixture/.kotlin/sessions /fixture/build; printf x > /fixture/.kotlin/sessions/kotlin-compiler-1.salive; printf x > /fixture/build/output'
+sleep 3
+write 'rm /fixture/.kotlin/sessions/kotlin-compiler-1.salive /fixture/build/output'
 sleep 5
 test "$(docker logs "$server" 2>&1 | grep -c 'the checkout changed; building')" = "$builds"
 echo 'java: build output did not trigger builds'

@@ -45,14 +45,16 @@ case "${1:-}" in
   fi
   # The checkout is a shared volume that other containers write to, where file
   # events don't arrive, so the files are polled. Build output, Git's own files,
-  # this script's storage and editor and Node folders are not watched.
+  # this script's storage and editor and Node folders are not watched, nor is
+  # .kotlin, where the Kotlin compiler keeps a session file for every build: a
+  # build run from a shell would otherwise restart the application twice.
   interval="${WORKSPACE_POLL_INTERVAL:-1000}"
   case "$interval" in ''|*[!0-9]*) echo 'WORKSPACE_POLL_INTERVAL must be milliseconds' >&2; exit 1 ;; esac
   [ "$interval" -ge 100 ] && [ "$interval" -le 60000 ] || { echo 'Polling interval must be 100..60000 ms' >&2; exit 1; }
   pause=$(( (interval + 999) / 1000 ))
   root=$(pwd -P)
   fingerprint() {
-   find "$root" \( -path "$root/.git" -o -path "$state" -o -name target -o -name build -o -name .gradle \
+   find "$root" \( -path "$root/.git" -o -path "$state" -o -name target -o -name build -o -name .gradle -o -name .kotlin \
     -o -name node_modules -o -name .idea -o -name .vscode \) -prune -o -type f -exec stat -c '%Y %s %n' {} + 2>/dev/null | sort | cksum
   }
   child=
