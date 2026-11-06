@@ -16,8 +16,15 @@ if [ -n "${JAVA_BUILD_COMMAND:-}" ]; then
   outputs=.
 elif [ -f pom.xml ]; then
   if [ -f mvnw ]; then mvn="sh ./mvnw"; else mvn=mvn; fi
+  # The compiler plugin records a compilation that failed as done. Built again
+  # without a newer source, as a watched workspace may do, it would find
+  # "nothing to compile" and package the last good classes as a success.
+  # Dropping its state after a failure makes the next build compile again.
   # shellcheck disable=SC2086
-  $mvn -B -ntp -Dmaven.test.skip=true ${JAVA_BUILD_ARGS:-} package
+  if ! $mvn -B -ntp -Dmaven.test.skip=true ${JAVA_BUILD_ARGS:-} package; then
+    rm -rf target/maven-status
+    exit 1
+  fi
   outputs=target
 elif [ -f build.gradle ] || [ -f build.gradle.kts ]; then
   [ -f gradlew ] || { echo 'java-build: Gradle projects need the Gradle wrapper (gradlew)' >&2; exit 1; }
