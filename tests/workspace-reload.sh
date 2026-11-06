@@ -63,8 +63,9 @@ write 'sed -i "s/before-edit/after-edit/" /fixture/src/main/java/test/Main.java'
 serves / after-edit
 echo 'java: a change to the source was built and served'
 
-# A build that fails must not take the running build down.
-write 'printf "\nclass Broken {\n" >> /fixture/src/main/java/test/Main.java'
+# A build that fails must not take the running build down. The code parses but does not
+# compile, as an ordinary mistake does.
+write 'printf "\nclass Broken { int broken = \"x\"; }\n" >> /fixture/src/main/java/test/Main.java'
 for _ in $(seq 1 120); do
  if docker logs "$server" 2>&1 | grep -q 'the build failed; the previous build keeps running'; then break; fi
  sleep 1
@@ -73,8 +74,22 @@ docker logs "$server" 2>&1 | grep -q 'the build failed; the previous build keeps
 serves / after-edit
 echo 'java: a failed build left the running build up'
 
+# Built again with no newer source, as after a change elsewhere in the checkout, the code
+# that does not compile must fail again: Maven would otherwise package the last good
+# classes as a success and restart the application with them.
+restarts=$(docker logs "$server" 2>&1 | grep -c 'restarted with the new build')
+write 'printf "notes\n" > /fixture/NOTES.txt'
+for _ in $(seq 1 120); do
+ if [ "$(docker logs "$server" 2>&1 | grep -c 'the build failed; the previous build keeps running')" -ge 2 ]; then break; fi
+ sleep 1
+done
+test "$(docker logs "$server" 2>&1 | grep -c 'the build failed; the previous build keeps running')" -ge 2
+test "$(docker logs "$server" 2>&1 | grep -c 'restarted with the new build')" = "$restarts"
+serves / after-edit
+echo 'java: a rebuild of code that does not compile failed again'
+
 # Fixed again, with a change to a resource the build packages.
-write 'sed -i "/^class Broken {$/d" /fixture/src/main/java/test/Main.java; printf "resource-after" > /fixture/src/main/resources/static.txt'
+write 'sed -i "/^class Broken /d" /fixture/src/main/java/test/Main.java; printf "resource-after" > /fixture/src/main/resources/static.txt'
 serves /static resource-after
 echo 'java: a change to a resource was built and served'
 
