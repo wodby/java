@@ -19,8 +19,8 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  JAVA25: '25.0.5'
-  JAVA21: '21.0.13'
+  JAVA25: '25.0.5.1'
+  JAVA21: '21.0.13.1'
 
 jobs:
   setup:
