@@ -1,6 +1,6 @@
 -include env_make
 
-JAVA_VER ?= 25.0.5
+JAVA_VER ?= 25.0.5.1
 JAVA_VER_MAJOR := $(shell v='$(JAVA_VER)'; echo "$${v%%.*}")
 
 REPO = wodby/java
